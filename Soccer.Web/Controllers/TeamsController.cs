@@ -2,6 +2,8 @@
 using Microsoft.EntityFrameworkCore;
 using Soccer.Web.Data;
 using Soccer.Web.Data.Entities;
+using Soccer.Web.Helpers;
+using Soccer.Web.Models;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -11,16 +13,24 @@ namespace Soccer.Web.Controllers
     public class TeamsController : Controller
     {
         private readonly DataContext _context;
+        private readonly IImageHelper _imageHelper;
+        private readonly IConverterHelper _converterHelper;
 
-        public TeamsController(DataContext context)
+        public TeamsController(
+            DataContext context,
+            IImageHelper imageHelper,
+            IConverterHelper converterHelper)
         {
             _context = context;
+            _imageHelper = imageHelper;
+            _converterHelper = converterHelper;
+
         }
 
 
         public async Task<IActionResult> Index()
         {
-            return View(await _context.Teams.ToListAsync());
+            return View(await _context.Teams.OrderBy(t => t.Name).ToListAsync());
         }
 
 
@@ -50,11 +60,21 @@ namespace Soccer.Web.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(TeamEntity teamEntity)
+        public async Task<IActionResult> Create(TeamViewModel model)
         {
             if (ModelState.IsValid)
             {
-                _context.Add(teamEntity);
+
+                var path = string.Empty;
+
+                if (model.LogoFile != null)
+                {
+                    path = await _imageHelper.UploadImageAsync(model.LogoFile, "Teams");
+                }
+
+                var team = _converterHelper.ToTeamEntity(model, path, true);
+
+                _context.Add(team);
                 try
                 {
                     await _context.SaveChangesAsync();
@@ -64,7 +84,7 @@ namespace Soccer.Web.Controllers
                 {
                     if (ex.InnerException.Message.Contains("duplicate"))
                     {
-                        ModelState.AddModelError(string.Empty, $"Already exists the team {teamEntity.Name}.");
+                        ModelState.AddModelError(string.Empty, $"Already exists the team {team.Name}.");
                     }
                     else
                     {
@@ -72,7 +92,7 @@ namespace Soccer.Web.Controllers
                     }
                 }
             }
-            return View(teamEntity);
+            return View(model);
         }
 
 
@@ -88,23 +108,29 @@ namespace Soccer.Web.Controllers
             {
                 return NotFound();
             }
-            return View(teamEntity);
+            TeamViewModel model = _converterHelper.ToTeamViewModel(teamEntity);
+            return View(model);
+
         }
 
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, TeamEntity teamEntity)
+        public async Task<IActionResult> Edit(TeamViewModel model)
         {
-            if (id != teamEntity.Id)
-            {
-                return NotFound();
-            }
+           
 
             if (ModelState.IsValid)
             {
-               
-                _context.Update(teamEntity);
+                var path = model.LogoPath;
+
+                if (model.LogoFile != null)
+                {
+                    path = await _imageHelper.UploadImageAsync(model.LogoFile, "Teams");
+                }
+
+                TeamEntity team = _converterHelper.ToTeamEntity(model, path, false);
+                _context.Update(team);
 
                 try
                 {
@@ -115,7 +141,7 @@ namespace Soccer.Web.Controllers
                 {
                     if (ex.InnerException.Message.Contains("duplicate"))
                     {
-                        ModelState.AddModelError(string.Empty, $"Already exists the team {teamEntity.Name}.");
+                        ModelState.AddModelError(string.Empty, $"Already exists the team {team.Name}.");
                     }
                     else
                     {
@@ -123,7 +149,7 @@ namespace Soccer.Web.Controllers
                     }
                 }
             }
-            return View(teamEntity);
+            return View(model);
         }
 
 
@@ -141,23 +167,9 @@ namespace Soccer.Web.Controllers
                 return NotFound();
             }
 
-            return View(teamEntity);
-        }
-
-
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            TeamEntity teamEntity = await _context.Teams.FindAsync(id);
             _context.Teams.Remove(teamEntity);
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
-        }
-
-        private bool TeamEntityExists(int id)
-        {
-            return _context.Teams.Any(e => e.Id == id);
         }
     }
 }
