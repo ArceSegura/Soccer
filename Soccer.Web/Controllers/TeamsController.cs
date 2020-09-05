@@ -108,8 +108,8 @@ namespace Soccer.Web.Controllers
             {
                 return NotFound();
             }
-            TeamViewModel model = _converterHelper.ToTeamViewModel(teamEntity);
-            return View(model);
+            TeamViewModel teamViewModel = _converterHelper.ToTeamViewModel(teamEntity);
+            return View(teamViewModel);
 
         }
 
@@ -118,8 +118,6 @@ namespace Soccer.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(TeamViewModel teamViewModel)
         {
-
-
             if (ModelState.IsValid)
             {
                 string path = teamViewModel.LogoPath;
