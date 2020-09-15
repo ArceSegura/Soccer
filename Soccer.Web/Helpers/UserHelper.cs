@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Soccer.Web.Data.Entities;
+using Soccer.Web.Models;
 using System.Threading.Tasks;
 
 namespace Soccer.Web.Helpers
@@ -8,14 +9,35 @@ namespace Soccer.Web.Helpers
     {
         private readonly UserManager<UserEntity> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly SignInManager<UserEntity> _signInManager;
+
 
         public UserHelper(
             UserManager<UserEntity> userManager,
-            RoleManager<IdentityRole> roleManager)
+            RoleManager<IdentityRole> roleManager,
+            SignInManager<UserEntity> signInManager
+            )
         {
+            _signInManager = signInManager;
             _userManager = userManager;
             _roleManager = roleManager;
         }
+
+        public async Task<SignInResult> LoginAsync(LoginViewModel model)
+        {
+            return await _signInManager.PasswordSignInAsync(
+                model.Username,
+                model.Password,
+                model.RememberMe,
+                false);
+        }
+
+        public async Task LogoutAsync()
+        {
+            await _signInManager.SignOutAsync();
+        }
+
+
 
         public async Task<IdentityResult> AddUserAsync(UserEntity user, string password)
         {
